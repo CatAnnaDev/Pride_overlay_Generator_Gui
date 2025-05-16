@@ -6,6 +6,6 @@ edition = "2024"
 [dependencies]
 eframe = "0.31.1"
 egui = "0.31.1"
-egui_extras = "0.31.1"
+rayon = "1.10.0"
 image = "0.25.6"
 rfd = "0.15.3"
