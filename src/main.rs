@@ -76,7 +76,7 @@ impl App for MyApp {
                             Ok(img) => {
                                 self.img = Some(img.clone());
                                 self.output_image = Some(img.to_rgba8());
-                                self.update_texture(ctx);  // crée la texture egui
+                                self.update_texture(ctx);
                             }
                             Err(e) => {
                                 eprintln!("Erreur chargement image: {}", e);
