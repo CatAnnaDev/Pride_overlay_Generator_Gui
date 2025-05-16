@@ -3,7 +3,7 @@ use rayon::iter::IndexedParallelIterator;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread;
 use eframe::{egui, App};
-use image::{DynamicImage, GenericImageView, Rgba, RgbaImage};
+use image::{DynamicImage, RgbaImage};
 use rayon::prelude::ParallelSliceMut;
 
 mod flags;
@@ -122,9 +122,7 @@ impl App for MyApp {
                     let img_clone = original.clone();
                     let blend_factor = self.blend_factor;
                     let sender = self.update_sender.clone();
-
-                    self.computing = true;  // on indique qu'on calcule
-
+                    self.computing = true;
                     thread::spawn(move || {
                         let new_img = apply_flag_overlay_to_image_with_blend(img_clone, flag_data, blend_factor);
                         let _ = sender.send(new_img);
@@ -152,8 +150,10 @@ impl App for MyApp {
 }
 
 fn apply_flag_overlay_to_image_with_blend(img: DynamicImage, flag_data: Vec<u8>, blend_factor: f32) -> RgbaImage {
-    //let (width, height) = img.dimensions();
     let mut img_rgba = img.to_rgba8();
+
+    let blend = (blend_factor * 256.0) as u32;
+    let inv_blend = 256 - blend;
 
     let pixels = img_rgba.as_mut();
 
@@ -163,25 +163,20 @@ fn apply_flag_overlay_to_image_with_blend(img: DynamicImage, flag_data: Vec<u8>,
         .for_each(|(i, pixel)| {
             let index = i * 4;
 
-            let orig_r = pixel[0] as f32;
-            let orig_g = pixel[1] as f32;
-            let orig_b = pixel[2] as f32;
-            let orig_a = pixel[3] as f32;
+            let orig_r = pixel[0] as u32;
+            let orig_g = pixel[1] as u32;
+            let orig_b = pixel[2] as u32;
+            let orig_a = pixel[3] as u32;
 
-            let flag_r = flag_data[index] as f32;
-            let flag_g = flag_data[index + 1] as f32;
-            let flag_b = flag_data[index + 2] as f32;
-            let flag_a = flag_data[index + 3] as f32;
+            let flag_r = flag_data[index] as u32;
+            let flag_g = flag_data[index + 1] as u32;
+            let flag_b = flag_data[index + 2] as u32;
+            let flag_a = flag_data[index + 3] as u32;
 
-            let blended_r = (orig_r * (1.0 - blend_factor) + flag_r * blend_factor).min(255.0) as u8;
-            let blended_g = (orig_g * (1.0 - blend_factor) + flag_g * blend_factor).min(255.0) as u8;
-            let blended_b = (orig_b * (1.0 - blend_factor) + flag_b * blend_factor).min(255.0) as u8;
-            let blended_a = (orig_a * (1.0 - blend_factor) + flag_a * blend_factor).min(255.0) as u8;
-
-            pixel[0] = blended_r;
-            pixel[1] = blended_g;
-            pixel[2] = blended_b;
-            pixel[3] = blended_a;
+            pixel[0] = ((orig_r * inv_blend + flag_r * blend) >> 8).min(255) as u8;
+            pixel[1] = ((orig_g * inv_blend + flag_g * blend) >> 8).min(255) as u8;
+            pixel[2] = ((orig_b * inv_blend + flag_b * blend) >> 8).min(255) as u8;
+            pixel[3] = ((orig_a * inv_blend + flag_a * blend) >> 8).min(255) as u8;
         });
 
     img_rgba
